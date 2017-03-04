@@ -10,6 +10,8 @@ Contributors: Jing Chen Ying Guo
 #include <sstream>
 using namespace std;
 
+#define t_cs 6
+
 bool readfile(char* file_name, vector<vector<string> >& data){
 	ifstream input;
 	input.open(file_name);
@@ -58,7 +60,7 @@ void fcfs(vector<vector<string> > data){
 	vector<string> queue;
 	string run = "";
 
-	for (int i = 0; i < 3; i++){
+	for (int i = 0; i < 5; i++){
 		//************************************
 		//check if everything finishes
 		int check = 0;
@@ -81,39 +83,44 @@ void fcfs(vector<vector<string> > data){
 		//2. It complete the task, we add the waiting time
 		//************************************
 
-		for (int i = 0; i < vec.size(); i++){
-			if (vec[i][0] == min){
-				if (data[i][0] == run){
+		for (int j = 0; j < vec.size(); j++){
+			if (vec[j][0] == min){
+				if (data[j][0] == run){
 					printf("time %dms: Process %s completed a CPU burst; %d bursts to go [%s]\n",
-							vec[i][0], data[i][0].c_str(), vec[i][2], printqueue(queue).c_str());
+							vec[j][0], data[j][0].c_str(), vec[j][2], printqueue(queue).c_str());
 					//vec[0][0] += vec[0][3];
 					printf("time %dms: Process %s switching out of CPU; will block on I/O until time %dms [%s]\n",
-							vec[i][0], data[i][0].c_str(), vec[i][0], printqueue(queue).c_str());
+							vec[j][0], data[j][0].c_str(), vec[j][0], printqueue(queue).c_str());
 					run = "";
 				}
 
-				//else {
-					if (vec[i][2] == atoi(data[i][3].c_str())){
-						if (find(queue.begin(), queue.end(), data[i][0]) == queue.end()){
-							queue.push_back(data[i][0]);
-							printf("time %dms: Process %s arrived and added to ready queue [%s]\n", 
-								vec[i][0], data[i][0].c_str(), printqueue(queue).c_str());
-						}
-						
-					}
-				//}
-
 				
-
+				if (vec[j][2] == atoi(data[j][3].c_str())){
+					if (find(queue.begin(), queue.end(), data[j][0]) == queue.end()){
+						queue.push_back(data[j][0]);
+						printf("time %dms: Process %s arrived and added to ready queue [%s]\n", 
+							vec[j][0], data[j][0].c_str(), printqueue(queue).c_str());
+						vec[j][0] += t_cs/2;
+					}
+				}
 			}
 		}
 
 		if (run == "" || queue.size() != 0){
 			run = queue[0];
 			vec[0][2]--;
-			//vec[0][0] += vec[0][1];
+			int time = vec[0][0];
+			for (int k = 0; k < queue.size(); k++){
+				for (int m = 0; m < 5; m++){
+					if (queue[k] == data[m][0]){
+						vec[m][0]+=vec[m][1];
+						break;
+					}
+				}
+			}
 			queue.erase(queue.begin());
-			printf("time %dms: Process %s started using the CPU [%s]\n", vec[i][0], data[i][0].c_str(), printqueue(queue).c_str());
+			printf("time %dms: Process %s started using the CPU [%s]\n", time, data[i][0].c_str(), printqueue(queue).c_str());
+			
 		}
 	}
 
