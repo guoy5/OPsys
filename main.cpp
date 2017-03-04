@@ -10,17 +10,14 @@ Contributors: Jing Chen Ying Guo
 #include <sstream>
 using namespace std;
 
-void readfile(char* file_name){
+bool readfile(char* file_name, vector<vector<string> >& data){
 	ifstream input;
 	input.open(file_name);
 	if (!input) {
 		cerr << "ERROR: Cannot open txt file" << endl;
+		return false;
 	}
-
 	string line;
-	vector<vector<string> > data;
-
-
 	while (!input.eof()){
 		getline(input, line);
 		if (line[0] == '#' || line.length() == 0)
@@ -34,17 +31,9 @@ void readfile(char* file_name){
 			}
 		    data.push_back(info);
 		}
-
 	}
 	input.close();
-
-
-	for (int i = 0; i < data.size(); i++){
-		for (int j = 0; j < data[i].size(); j++)
-			cout << data[i][j] << " ";
-		cout << endl;
-	}
-
+	return true;
 }
 
 
@@ -57,9 +46,17 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 
+	
 	//Read the txt file and store the information in vectors
-	readfile(argv[1]);
+	vector<vector<string> > data;
+	if (!readfile(argv[1], data))
+		return -1;
 
+	for (int i = 0; i < data.size(); i++){
+		for (int j = 0; j < data[i].size(); j++)
+			cout << data[i][j] << " ";
+		cout << endl;
+	}
 
 	return 0;
 }
