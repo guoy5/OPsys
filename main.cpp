@@ -112,10 +112,17 @@ void fcfs(vector<vector<string> > data){
 								vec[j][0], data[j][0].c_str(), printqueue(queue).c_str());
 						finish.push_back(data[j][0]);
 						vec[j][0] += t_cs/2;
+						// for (int k = 0; k < queue.size(); k++){
+						// 	for (int m = 0; m < data.size(); m++){
+						// 		if (queue[k] == data[m][0]){
+						// 			vec[m][0] = vec[j][0];
+						// 		}
+						// 	}
+						// }
 						for (int k = 0; k < queue.size(); k++){
 							for (int m = 0; m < data.size(); m++){
 								if (queue[k] == data[m][0]){
-									vec[m][0] = vec[j][0];
+									vec[m][0] += t_cs/2;
 								}
 							}
 						}
@@ -145,7 +152,7 @@ void fcfs(vector<vector<string> > data){
 						queue.push_back(data[j][0]);
 						printf("time %dms: Process %s completed I/O; added to ready queue [%s]\n", 
 								vec[j][0], data[j][0].c_str(), printqueue(queue).c_str());
-						vec[j][0] += t_cs/2;
+						//vec[j][0] += t_cs/2;
 						for (int k = 0; k < queue.size(); k++){
 							for (int m = 0; m < data.size(); m++){
 								if (queue[k] == data[m][0]){
@@ -197,14 +204,13 @@ void fcfs(vector<vector<string> > data){
 
 			for (int k = 0; k < queue.size(); k++){
 				for (int m = 0; m < data.size(); m++){
-					if (queue[k] == data[m][0] && vec[m][0] < vec[pos][0]){
+					if (queue[k] == data[m][0]){
 						vec[m][0] = vec[pos][0];
 						break;
 					}
 				}
 			}
 
-			//cout << vec[pos][0] << endl;
 			printf("time %dms: Process %s started using the CPU [%s]\n", 
 					time, data[pos][0].c_str(), printqueue(queue).c_str());
 
