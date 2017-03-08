@@ -3,18 +3,18 @@ Contributors: Jing Chen Ying Guo
 */
 
 #include <stdlib.h>
-#include<assert.h>
+#include <assert.h>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <map>
 #include <sstream>
-#include<iomanip>
+#include <iomanip>
 using namespace std;
 
 int t_cs = 6; //time to take a context switch
-int  t_slice = 94;
+int t_slice = 94;
 
 bool readfile(char* file_name, vector<vector<string> >& data){
 	ifstream input;
@@ -51,91 +51,176 @@ string printqueue(vector<string>& queue){
 	return str;
 }
 
-/*
+
 void fcfs(vector<vector<string> > data){
 	cout << "time 0ms: Simulator started for FCFS [Q <empty>]" << endl;
-	vector<vector<int> > vec;
+
+	vector<vector<int> > vec; //[current time, burst times]
 	for (int i = 0; i < data.size(); i++){
 		vector<int> tmp;
-		for (int j = 1; j < data[i].size(); j++)
-			tmp.push_back(atoi(data[i][j].c_str()));
+		tmp.push_back(atoi(data[i][1].c_str()));
+		tmp.push_back(atoi(data[i][3].c_str()));
 		vec.push_back(tmp);
 	}
 	
 	vector<string> queue;
+	vector<string> finish;
 	string run = "";
 
-	for (int i = 0; i < 3; i++){
-		// ************************************
+	while (true) {
+		//************************************
 		//check if everything finishes
 		int check = 0;
 		for (int i = 0; i < vec.size(); i++){
-			if (vec[i][2] != 0)	check = 1;
+			if (vec[i][1] != 0)	check = 1;
 		}
-		if (check == 0) break;
-
+		if (check == 0 && finish.size() == data.size()) break;
 		
-		// ************************************
+		//************************************
 		//Find the minimize value
 		int min = vec[0][0];
 		for (int i = 0; i < vec.size(); i++){
-			if (vec[i][0] <  min)
-				min = vec[i][0];
+			if (find(finish.begin(), finish.end(), data[i][0]) == finish.end()){
+				if (find(finish.begin(), finish.end(), data[0][0]) != finish.end())
+					min = vec[i][0];
+				if (vec[i][0] <  min)
+					min = vec[i][0];
+			}
 		}
+		
+		// for (int i = 0; i < vec.size(); i++){
+		// 	cout << vec[i][0] << " " << vec[i][1] << endl;
+		// }
 
-		//The number could mean:
+
+		//************************************
+		//The min could mean:
 		//1. It is the new process or start using the CPU
 		//2. It complete the task, we add the waiting time
-		// ************************************
-
-		for (int i = 0; i < vec.size(); i++){
-			if (vec[i][0] == min){
-				if (data[i][0] == run){
-					printf("time %dms: Process %s completed a CPU burst; %d bursts to go [%s]\n",
-							vec[i][0], data[i][0].c_str(), vec[i][2], printqueue(queue).c_str());
-					//vec[0][0] += vec[0][3];
-					printf("time %dms: Process %s switching out of CPU; will block on I/O until time %dms [%s]\n",
-							vec[i][0], data[i][0].c_str(), vec[i][0], printqueue(queue).c_str());
-					run = "";
-				}
-
-				//else {
-					if (vec[i][2] == atoi(data[i][3].c_str())){
-						if (find(queue.begin(), queue.end(), data[i][0]) == queue.end()){
-							queue.push_back(data[i][0]);
-							printf("time %dms: Process %s arrived and added to ready queue [%s]\n", 
-								vec[i][0], data[i][0].c_str(), printqueue(queue).c_str());
-						}
-						
+		for (int j = 0; j < vec.size(); j++){
+			if (vec[j][0] == min){
+				// new process
+				if (vec[j][1] == atoi(data[j][3].c_str())){
+					if (find(queue.begin(), queue.end(), data[j][0]) == queue.end()){
+						queue.push_back(data[j][0]);
+						printf("time %dms: Process %s arrived and added to ready queue [%s]\n", 
+								vec[j][0], data[j][0].c_str(), printqueue(queue).c_str());
 					}
-				//}
+				} else if (data[j][0] == run){
+					if (vec[j][1] == 0){
+						printf("time %dms: Process %s terminated [%s]\n", 
+								vec[j][0], data[j][0].c_str(), printqueue(queue).c_str());
+						finish.push_back(data[j][0]);
+						vec[j][0] += t_cs/2;
+						for (int k = 0; k < queue.size(); k++){
+							for (int m = 0; m < data.size(); m++){
+								if (queue[k] == data[m][0]){
+									vec[m][0] = vec[j][0];
+								}
+							}
+						}
 
-				
+					} else {
+						if (vec[j][1] > 1)
+							printf("time %dms: Process %s completed a CPU burst; %d bursts to go [%s]\n",
+									vec[j][0], data[j][0].c_str(), vec[j][1], printqueue(queue).c_str());
+						else 
+							printf("time %dms: Process %s completed a CPU burst; %d burst to go [%s]\n",
+									vec[j][0], data[j][0].c_str(), vec[j][1], printqueue(queue).c_str());
+						printf("time %dms: Process %s switching out of CPU; will block on I/O until time %dms [%s]\n",
+								vec[j][0], data[j][0].c_str(), vec[j][0] + atoi(data[j][4].c_str()) + t_cs/2, printqueue(queue).c_str());
+						for (int k = 0; k < queue.size(); k++){
+							for (int m = 0; m < data.size(); m++){
+								if (queue[k] == data[m][0]){
+									vec[m][0] = vec[j][0] + t_cs/2;
+								}
+							}
+						}
+						vec[j][0] += atoi(data[j][4].c_str()) + t_cs/2;
+					}
+					run = "";
+					//vec[j][0] += t_cs/2;
+				} else {
+					if (vec[j][1]!=0 && find(queue.begin(), queue.end(), data[j][0]) == queue.end()){
+						queue.push_back(data[j][0]);
+						printf("time %dms: Process %s completed I/O; added to ready queue [%s]\n", 
+								vec[j][0], data[j][0].c_str(), printqueue(queue).c_str());
+						vec[j][0] += t_cs/2;
+						for (int k = 0; k < queue.size(); k++){
+							for (int m = 0; m < data.size(); m++){
+								if (queue[k] == data[m][0]){
+									vec[m][0] = vec[j][0];
+								}
+							}
+						}
+					}
 
+				}
 			}
 		}
 
-		if (run == "" || queue.size() != 0){
+		if (run != "" && queue.size() != 0){
+			int time;
+			for (int k = 0; k < data.size(); k++){
+				if (run == data[k][0]){
+					time = vec[k][0];
+					break;
+				}
+			}
+			for (int k = 0; k < queue.size(); k++){
+				for (int m = 0; m < data.size(); m++){
+					if (queue[k] == data[m][0] && vec[m][0] < time){
+						vec[m][0] = time;
+					}
+				}
+			}
+
+		}
+
+		// run the process
+		if (run == "" && queue.size() != 0){
 			run = queue[0];
-			vec[0][2]--;
-			//vec[0][0] += vec[0][1];
+			
+			int pos = 0;
+			int time = 0;
+			for (int k = 0; k < data.size(); k++){
+				if (run == data[k][0]){
+					time = vec[k][0] + t_cs/2;
+					vec[k][0] = time + atoi(data[k][2].c_str());
+					vec[k][1]--;
+					pos = k;
+					break;
+				}
+			}
+
 			queue.erase(queue.begin());
-			printf("time %dms: Process %s started using the CPU [%s]\n", vec[i][0], data[i][0].c_str(), printqueue(queue).c_str());
+
+			for (int k = 0; k < queue.size(); k++){
+				for (int m = 0; m < data.size(); m++){
+					if (queue[k] == data[m][0] && vec[m][0] < vec[pos][0]){
+						vec[m][0] = vec[pos][0];
+						break;
+					}
+				}
+			}
+
+			//cout << vec[pos][0] << endl;
+			printf("time %dms: Process %s started using the CPU [%s]\n", 
+					time, data[pos][0].c_str(), printqueue(queue).c_str());
+
+			
+			
 		}
 	}
 
+	int max = vec[0][0];
+	for (int i = 0; i < vec.size(); i++){
+		if (vec[i][0] >  max)
+			max = vec[i][0];
+	}
 
-
-
-
-	// for (int i = 0; i < vec.size(); i++){
-	// 	for (int j = 0; j < vec[i].size(); j++)
-	// 		cout << vec[i][j] << " ";
-	// 	cout << endl;
-	// }
-
+	printf("time %dms: Simulator ended for FCFS\n", max);
 }
-*/
 
 struct process{
 	string proc_id;
@@ -465,7 +550,7 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 
 int main(int argc, char *argv[]){
 
-	if (argc != 3) {
+	if (argc != 2) {
 		cerr << "ERROR: Invalid arguments" << endl;
 		cerr << "USAGE: ./a.out <input-file> <stats-output-file>" << endl;
 		return -1;
@@ -479,9 +564,9 @@ int main(int argc, char *argv[]){
 
 	ofstream stat_stream(argv[2]);
 
-//	fcfs(data);
+	fcfs(data);
 
-	srt(data, stat_stream);
+	//srt(data, stat_stream);
 
 	//rr(data, stat_stream);
 
