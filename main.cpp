@@ -3,14 +3,18 @@ Contributors: Jing Chen Ying Guo
 */
 
 #include <stdlib.h>
+#include<assert.h>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <map>
 #include <sstream>
+#include<iomanip>
 using namespace std;
 
-#define t_cs 6
+int t_cs = 6; //time to take a context switch
+int  t_slice = 94;
 
 bool readfile(char* file_name, vector<vector<string> >& data){
 	ifstream input;
