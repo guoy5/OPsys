@@ -537,11 +537,19 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 	cout<<"time "<<stime<<"ms: Simulator ended for SRT"<<endl;
 
 
-	stats_stream<<"Algorithm SRT"<<endl;
+	for(size_t k=0;k<n;++k)
+		wait_num += processes[k].wait_num;
+	
+	cerr<<"total wait time="<<wait_time<<", num="<<wait_num<<endl;
+	
+	double avg_cpu_burst = (double)burst_time/total_burst/m;
+	double avg_wait_time = (double)wait_time/wait_num;
+	double avg_turnaround_time = avg_wait_time + avg_cpu_burst + t_cs;
 
-	stats_stream<<"-- average CPU burst time: "<<fixed<<setprecision(2)<<(double)burst_time/total_burst/m<<" ms"<<endl;
-	stats_stream<<"-- average wait time: "<<fixed<<setprecision(2)<<(double)wait_time/wait_num<<" ms"<<endl;
-	stats_stream<<"-- average turnaround time: "<<turnaround_time<<" ms"<<endl;
+	stats_stream<<"Algorithm SRT"<<endl;
+	stats_stream<<"-- average CPU burst time: "<<fixed<<setprecision(2)<<avg_cpu_burst<<" ms"<<endl;
+	stats_stream<<"-- average wait time: "<<fixed<<setprecision(2)<<avg_wait_time<<" ms"<<endl;
+	stats_stream<<"-- average turnaround time: "<<avg_turnaround_time<<" ms"<<endl;
 	stats_stream<<"-- total number of context switches: "<<ctx_switch<<endl;
 	stats_stream<<"-- total number of preemptions: "<<preemption<<endl;
 }
