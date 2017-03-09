@@ -546,6 +546,228 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 	stats_stream<<"-- total number of preemptions: "<<preemption<<endl;
 }
 
+void rr_enqueue(int stime, vector<string>& ready_queue, string& proc, map<string, process*> &id2pr){
+	id2pr[proc]->enqueue_ready_time = stime;
+	++id2pr[proc]->wait_num;
+	ready_queue.push_back(proc);
+}
+
+bool rr_do_process_cpu_burst(int stime, process* pr, vector<string>& ready_queue, vector<process*>& blocked_queue, bool* dead){
+	bool cpu_burst = false;
+	*dead = false;
+	if(pr){
+		--pr->cur_burst_remaining;
+		
+		if(pr->cur_burst_remaining == 0){
+			cpu_burst = true;
+			string proc_id = pr->proc_id;
+			assert(pr->burst_num >= pr->cur_burst);
+			size_t left_burst = pr->burst_num  - pr->cur_burst - 1;
+			if(left_burst)
+				cout<<"time "<<stime<<"ms: Process "<<proc_id<<" completed a CPU burst; ";
+			else
+				cout<<"time "<<stime<<"ms: Process "<<proc_id<<" terminated ";
+			if(left_burst > 1)
+				cout<<left_burst<<" bursts to go ";
+			else if(left_burst == 1)
+				cout<<left_burst<<" burst to go ";
+			cout<<"["<<printqueue(ready_queue)<<"]"<<endl;
+			if(left_burst){
+				pr->wait_io_start_time = stime + t_cs/2;
+				pr->cur_burst_remaining = pr->cpu_burst;
+				blocked_queue.push_back(pr);
+				cout<<"time "<<stime<<"ms: Process "<<proc_id<<" switching out of CPU;";
+				cout<<" will block on I/O until time "<<(pr->wait_io_start_time + pr->io_time)<<"ms ";
+				cout<<"["<<printqueue(ready_queue)<<"]"<<endl;
+			}else{
+				//cout<<"time "<<stime<<"ms: Time slice expired; process "<<proc_id<<" preempted with 0ms to go ";
+				//cout<<"["<<printqueue(ready_queue)<<"]"<<endl;
+			}
+			*dead = 0 == left_burst;
+		}else if(stime - pr->last_use_cpu_start_time >= t_slice){
+			cpu_burst = true;
+		}
+	}
+	return cpu_burst;
+}
+
+void rr_do_io_complete(int stime, map<string, process*> &id2pr, vector<process*>& blocked_queue, vector<string>& ready_queue){
+	
+	//select all processes completed io
+	for(vector<process*>::iterator iter=blocked_queue.begin();iter!=blocked_queue.end();){
+		process* pr = *iter;
+		assert(pr!=NULL);
+		if(stime == pr->wait_io_start_time + pr->io_time){
+			//cout<<stime<<"ms: "<<pr->proc_id<<" complete io"<<endl;
+			rr_enqueue(stime, ready_queue, pr->proc_id, id2pr);
+			cout<<"time "<<stime<<"ms: Process "<<(*iter)->proc_id<<" completed I/O;";
+			cout<<" added to ready queue ["<<printqueue(ready_queue)<<"]"<<endl;
+			iter = blocked_queue.erase(iter);
+		}else
+			++iter;
+	}
+}
+
+void rr_do_arrival(int stime, map<string, process*>& id2pr, vector<process>& processes, vector<string>& ready_queue){
+	
+	for(size_t k=0; k < processes.size(); ++k){
+		if(processes[k].arrival != stime)
+			continue;
+		process* pr = &processes[k];
+		rr_enqueue(stime, ready_queue, pr->proc_id, id2pr);
+		cout<<"time "<<stime<<"ms: Process "<<pr->proc_id<<" arrived and";
+		cout<<" added to ready queue ["<<printqueue(ready_queue)<<"]"<<endl;
+
+	}
+	
+}
+
+void rr(vector<vector<string> >& data, ostream& stats_stream){
+	cout << "time 0ms: Simulator started for RR [Q <empty>]" << endl;
+	int stime = 0;
+	int burst_time=0,wait_time=0,  ctx_switch=0,preemption=0;
+	int wait_num = 0;
+	
+	vector<process> processes;
+	vector<string> ready_queue;
+	vector<process*> blocked_queue;
+	process* current_process=NULL;
+	map<string, process*> id2pr;
+
+	size_t n = data.size(), //process num
+		   m = 1; //cpu number
+	size_t total_burst = 0;
+
+	//
+	convert_process(data, processes);
+	for(size_t k=0;k < n;++k){
+		id2pr[processes[k].proc_id] = &processes[k];
+		burst_time += processes[k].cpu_burst * processes[k].burst_num;
+		total_burst += processes[k].burst_num;
+	}
+
+
+	size_t alive = processes.size();
+	for(;;++stime){
+		//cpu burst completion
+		bool cpu_burst = false;
+		bool dead=false;
+		
+		//cout<<stime<<"ms: do_process_cpu_burst"<<endl;
+		string last_proc_id;
+		cpu_burst = rr_do_process_cpu_burst(stime, current_process, ready_queue, blocked_queue, &dead);
+		if(dead || (cpu_burst && current_process->cur_burst_remaining == current_process->cpu_burst)){
+			last_proc_id = current_process->proc_id;
+			current_process = NULL;
+		}
+		if(dead)
+			--alive;
+		if(!alive)
+			break;
+		
+		//io burst completion
+		rr_do_io_complete(stime, id2pr, blocked_queue, ready_queue);
+		
+		//arrival
+		rr_do_arrival(stime, id2pr, processes, ready_queue);
+		
+		//cout<<stime<<"ms: start to switch, current="<<current_process<<endl;
+		
+		if(current_process){
+			if(!cpu_burst)
+				continue;
+			//current process is out of slice time
+			if(ready_queue.empty()){
+				current_process->last_use_cpu_start_time = stime;
+				cout<<"time "<<stime<<"ms: Time slice expired; ";
+				cout<<"no preemption because ready queue is empty [Q <empty>]"<<endl;
+
+				continue;
+			}else{
+				cout<<"time "<<stime<<"ms: Time slice expired; ";
+				cout<<"process "<<current_process->proc_id<<" preempted with "<<current_process->cur_burst_remaining<<"ms to go ";
+				cout<<"["<<printqueue(ready_queue)<<"]"<<endl;
+
+				
+				++ctx_switch;
+				++preemption;
+				if(current_process->cur_burst_remaining){
+					rr_enqueue(stime, ready_queue, current_process->proc_id, id2pr);
+				
+				}
+				wait_time += stime - current_process->enqueue_ready_time;
+				if(cpu_burst)
+					wait_time += t_cs/2;
+
+				stime += t_cs;
+				string proc = ready_queue[0];
+				ready_queue.erase(ready_queue.begin());
+				current_process = id2pr[proc];
+				current_process->last_use_cpu_start_time = stime;
+				if(current_process->cur_burst_remaining == current_process->cpu_burst){
+					++current_process->cur_burst;
+					//current_process->cur_burst_remaining = current_process->cpu_burst;
+				}
+					
+				cout<<"time "<<stime<<"ms: Process "<<current_process->proc_id<<" started using the CPU";
+				if(current_process->cur_burst_remaining < current_process->cpu_burst)
+					cout<<" with "<<current_process->cur_burst_remaining<<"ms remaining";
+				cout<<" ["<<printqueue(ready_queue)<<"]"<<endl;
+			}
+		}else{
+			if(ready_queue.empty())
+				continue;
+			int skip_time = cpu_burst?t_cs:t_cs/2;
+			
+
+			string proc = ready_queue[0];
+			ready_queue.erase(ready_queue.begin());
+			current_process = id2pr[proc];
+			//cout<<stime<<"ms: find new process, current="<<current_process<<endl;
+			assert(current_process);
+			wait_time += stime - current_process->enqueue_ready_time;
+			if(cpu_burst)
+				wait_time += t_cs/2;
+			
+			stime += skip_time;
+			current_process->last_use_cpu_start_time = stime;
+			if(current_process->cur_burst_remaining == current_process->cpu_burst){
+				++current_process->cur_burst;
+				current_process->cur_burst_remaining = current_process->cpu_burst;
+			}
+		
+			//++current_process->cur_burst;
+			cout<<"time "<<stime<<"ms: Process "<<current_process->proc_id<<" started using the CPU";
+			if(current_process->cur_burst_remaining < current_process->cpu_burst)
+				cout<<" with "<<current_process->cur_burst_remaining<<"ms remaining";
+			cout<<" ["<<printqueue(ready_queue)<<"]"<<endl;
+			++ctx_switch;
+			
+			//cout<<stime<<"ms: finish switch, current == NULL"<<endl;
+
+		}
+		
+	}
+
+	stime += t_cs/2;
+	
+	for(size_t k=0;k<n;++k)
+		wait_num += processes[k].wait_num;
+	//cerr<<"total wait time="<<wait_time<<", num="<<wait_num<<endl;
+	double avg_cpu_burst = (double)burst_time/total_burst/m;
+	double avg_wait_time = (double)wait_time/wait_num;
+	double avg_turnaround_time = avg_wait_time + avg_cpu_burst + t_cs;
+	
+	cout<<"time "<<stime<<"ms: Simulator ended for RR"<<endl;
+
+
+	stats_stream<<"Algorithm RR"<<endl;
+	stats_stream<<"-- average CPU burst time: "<<fixed<<setprecision(2)<<avg_cpu_burst<<" ms"<<endl;
+	stats_stream<<"-- average wait time: "<<fixed<<setprecision(2)<<avg_wait_time<<" ms"<<endl;
+	stats_stream<<"-- average turnaround time: "<<avg_turnaround_time<<" ms"<<endl;
+	stats_stream<<"-- total number of context switches: "<<ctx_switch<<endl;
+	stats_stream<<"-- total number of preemptions: "<<preemption<<endl;
+}
 
 
 
@@ -567,11 +789,11 @@ int main(int argc, char *argv[]){
 
 	ofstream stat_stream(argv[2]);
 
-	fcfs(data);
+	//fcfs(data);
 
-	//srt(data, stat_stream);
+	srt(data, stat_stream);
 
-	//rr(data, stat_stream);
+	rr(data, stat_stream);
 
 	stat_stream.close();
 
