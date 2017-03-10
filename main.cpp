@@ -436,7 +436,8 @@ process* do_arrival(int stime, process* current, map<string, process*> &id2pr, v
 void srt(vector<vector<string> >& data, ostream& stats_stream){
 	cout << "time 0ms: Simulator started for SRT [Q <empty>]" << endl;
 	int stime = 0;
-	int burst_time=0,wait_time=0, turnaround_time=0, ctx_switch=0,preemption=0;
+	int burst_time=0,wait_time=0, ctx_switch=0,preemption=0;
+	//int turnaround_time=0;
 	int wait_num = 0;
 	
 	vector<process> processes;
@@ -577,10 +578,10 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 	cout<<"time "<<stime<<"ms: Simulator ended for SRT"<<endl;
 
 
-	for(size_t k=0;k<n;++k)
-		wait_num += processes[k].wait_num;
+	// for(size_t k=0;k<n;++k)
+	// 	wait_num += processes[k].wait_num;
 	
-	cerr<<"total wait time="<<wait_time<<", num="<<wait_num<<endl;
+	//cerr<<"total wait time="<<wait_time<<", num="<<wait_num<<endl;
 	
 	double avg_cpu_burst = (double)burst_time/total_burst/m;
 	double avg_wait_time = (double)wait_time/wait_num;
@@ -588,7 +589,7 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 
 	stats_stream<<"Algorithm SRT"<<endl;
 	stats_stream<<"-- average CPU burst time: "<<fixed<<setprecision(2)<<avg_cpu_burst<<" ms"<<endl;
-	stats_stream<<"-- average wait time: "<<fixed<<setprecision(2)<<avg_wait_time<<" ms"<<endl;
+	//stats_stream<<"-- average wait time: "<<fixed<<setprecision(2)<<avg_wait_time<<" ms"<<endl;
 	stats_stream<<"-- average turnaround time: "<<avg_turnaround_time<<" ms"<<endl;
 	stats_stream<<"-- total number of context switches: "<<ctx_switch<<endl;
 	stats_stream<<"-- total number of preemptions: "<<preemption<<endl;
@@ -596,7 +597,7 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 
 void rr_enqueue(int stime, vector<string>& ready_queue, string& proc, map<string, process*> &id2pr){
 	id2pr[proc]->enqueue_ready_time = stime;
-	++id2pr[proc]->wait_num;
+	// ++id2pr[proc]->wait_num;
 	ready_queue.push_back(proc);
 }
 
@@ -799,8 +800,8 @@ void rr(vector<vector<string> >& data, ostream& stats_stream){
 
 	stime += t_cs/2;
 	
-	for(size_t k=0;k<n;++k)
-		wait_num += processes[k].wait_num;
+	// for(size_t k=0;k<n;++k)
+		// wait_num += processes[k].wait_num;
 	//cerr<<"total wait time="<<wait_time<<", num="<<wait_num<<endl;
 	double avg_cpu_burst = (double)burst_time/total_burst/m;
 	double avg_wait_time = (double)wait_time/wait_num;
@@ -823,20 +824,26 @@ int main(int argc, char *argv[]){
 	if (argc != 3) {
 		cerr << "ERROR: Invalid arguments" << endl;
 		cerr << "USAGE: ./a.out <input-file> <stats-output-file>" << endl;
-		return -1;
+		return EXIT_FAILURE;
 	}
 
 	
 	//Read the txt file and store the information in vectors
 	vector<vector<string> > data;
-	if (!readfile(argv[1], data))
-		return -1;
+	if (!readfile(argv[1], data)){
+		cerr << "ERROR: Invalid input file format" << endl;
+		return EXIT_FAILURE;
+	}
 
 	ofstream stat_stream(argv[2]);
 
 	fcfs(data, stat_stream);
 
+	cout << endl;
+
 	srt(data, stat_stream);
+
+	cout << endl;
 
 	rr(data, stat_stream);
 
