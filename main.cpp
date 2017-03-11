@@ -1,5 +1,5 @@
 /*
-Contributors: Jing Chen Ying Guo
+Contributors: Jing Chen(chenj32),Ying Guo(guoy5)
 */
 
 #include <stdlib.h>
