@@ -437,8 +437,6 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 	cout << "time 0ms: Simulator started for SRT [Q <empty>]" << endl;
 	int stime = 0;
 	int burst_time=0,wait_time=0, ctx_switch=0,preemption=0;
-	//int turnaround_time=0;
-	int wait_num = 0;
 	
 	vector<process> processes;
 	vector<string> ready_queue;
@@ -543,7 +541,6 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 				if(min != ready_queue.end()){
 					current_process = id2pr[*min];
 					wait_time += stime - current_process->enqueue_ready_time;
-					++wait_num;
 					ready_queue.erase(min);
 					cout<<"time "<<(stime + skip_time)<<"ms: Process "<<current_process->proc_id<<" started using the CPU";
 					if(current_process->cur_burst_remaining == current_process->cpu_burst)
@@ -584,12 +581,12 @@ void srt(vector<vector<string> >& data, ostream& stats_stream){
 	//cerr<<"total wait time="<<wait_time<<", num="<<wait_num<<endl;
 	
 	double avg_cpu_burst = (double)burst_time/total_burst/m;
-	double avg_wait_time = (double)wait_time/wait_num;
+	double avg_wait_time = (double)wait_time/ctx_switch;
 	double avg_turnaround_time = avg_wait_time + avg_cpu_burst + t_cs;
 
 	stats_stream<<"Algorithm SRT"<<endl;
 	stats_stream<<"-- average CPU burst time: "<<fixed<<setprecision(2)<<avg_cpu_burst<<" ms"<<endl;
-	//stats_stream<<"-- average wait time: "<<fixed<<setprecision(2)<<avg_wait_time<<" ms"<<endl;
+	stats_stream<<"-- average wait time: "<<fixed<<setprecision(2)<<avg_wait_time<<" ms"<<endl;
 	stats_stream<<"-- average turnaround time: "<<avg_turnaround_time<<" ms"<<endl;
 	stats_stream<<"-- total number of context switches: "<<ctx_switch<<endl;
 	stats_stream<<"-- total number of preemptions: "<<preemption<<endl;
@@ -675,7 +672,6 @@ void rr(vector<vector<string> >& data, ostream& stats_stream){
 	cout << "time 0ms: Simulator started for RR [Q <empty>]" << endl;
 	int stime = 0;
 	int burst_time=0,wait_time=0,  ctx_switch=0,preemption=0;
-	int wait_num = 0;
 	
 	vector<process> processes;
 	vector<string> ready_queue;
@@ -804,7 +800,7 @@ void rr(vector<vector<string> >& data, ostream& stats_stream){
 		// wait_num += processes[k].wait_num;
 	//cerr<<"total wait time="<<wait_time<<", num="<<wait_num<<endl;
 	double avg_cpu_burst = (double)burst_time/total_burst/m;
-	double avg_wait_time = (double)wait_time/wait_num;
+	double avg_wait_time = (double)wait_time/ctx_switch;
 	double avg_turnaround_time = avg_wait_time + avg_cpu_burst + t_cs;
 	
 	cout<<"time "<<stime<<"ms: Simulator ended for RR"<<endl;
